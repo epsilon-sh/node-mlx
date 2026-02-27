@@ -455,6 +455,29 @@ declare module '*node_mlx.node' {
     function rope(array: ScalarOrArray, dims: number, traditional: boolean, base: number | undefined, scale: number, offset: ScalarOrArray, freqs?: array, s?: StreamOrDevice): array;
     function scaledDotProductAttention(queries: ScalarOrArray, keys: ScalarOrArray, values: ScalarOrArray, scale: number, mask?: ScalarOrArray, memoryEfficientThreshold?: number, s?: StreamOrDevice): array;
     function affineQuantize(w: ScalarOrArray, scales: ScalarOrArray, biases: ScalarOrArray, groupSize?: number, bits?: number, s?: StreamOrDevice): array;
+
+    type TemplateArg = number | boolean | Dtype;
+    type MetalKernelFunction = (
+      inputs: array[],
+      outputShapes: number[][],
+      outputDtypes: Dtype[],
+      grid: [number, number, number],
+      threadgroup: [number, number, number],
+      templateArgs?: [string, TemplateArg][],
+      initValue?: number,
+      verbose?: boolean,
+      stream?: StreamOrDevice,
+    ) => array[];
+
+    function metalKernel(
+      name: string,
+      inputNames: string[],
+      outputNames: string[],
+      source: string,
+      header?: string,
+      ensureRowContiguous?: boolean,
+      atomicOutputs?: boolean,
+    ): MetalKernelFunction;
   }
 
   // Constants.
