@@ -1,7 +1,55 @@
+#include <sstream>
+
 #include "src/array.h"
 #include "src/stream.h"
 
 namespace fast_ops {
+
+// JS-friendly signature for the callable returned by metalKernel.
+// The raw MetalKernelFunction has required params (vector<pair>, bool) that
+// kizunapi can't auto-omit. This wrapper makes them optional.
+using JsKernelFunction = std::function<std::vector<mx::array>(
+    const std::vector<mx::array>&,
+    const std::vector<mx::Shape>&,
+    const std::vector<mx::Dtype>&,
+    std::tuple<int, int, int>,
+    std::tuple<int, int, int>,
+    std::optional<std::vector<std::pair<std::string, mx::fast::TemplateArg>>>,
+    std::optional<float>,
+    std::optional<bool>,
+    mx::StreamOrDevice)>;
+
+JsKernelFunction MetalKernel(
+    const std::string& name,
+    const std::vector<std::string>& input_names,
+    const std::vector<std::string>& output_names,
+    const std::string& source,
+    std::optional<std::string> header,
+    std::optional<bool> ensure_row_contiguous,
+    std::optional<bool> atomic_outputs) {
+  auto kernel = mx::fast::metal_kernel(
+      name, input_names, output_names, source,
+      header.value_or(""),
+      ensure_row_contiguous.value_or(true),
+      atomic_outputs.value_or(false));
+  return [kernel = std::move(kernel)](
+      const std::vector<mx::array>& inputs,
+      const std::vector<mx::Shape>& output_shapes,
+      const std::vector<mx::Dtype>& output_dtypes,
+      std::tuple<int, int, int> grid,
+      std::tuple<int, int, int> threadgroup,
+      std::optional<std::vector<std::pair<std::string, mx::fast::TemplateArg>>> template_args,
+      std::optional<float> init_value,
+      std::optional<bool> verbose,
+      mx::StreamOrDevice s) -> std::vector<mx::array> {
+    return kernel(
+        inputs, output_shapes, output_dtypes, grid, threadgroup,
+        template_args.value_or(std::vector<std::pair<std::string, mx::fast::TemplateArg>>{}),
+        init_value,
+        verbose.value_or(false),
+        s);
+  };
+}
 
 mx::array Rope(const mx::array& x,
                int dims,
@@ -65,5 +113,6 @@ void InitFast(napi_env env, napi_value exports) {
           "rmsNorm", &mx::fast::rms_norm,
           "layerNorm", &mx::fast::layer_norm,
           "rope", &fast_ops::Rope,
-          "scaledDotProductAttention", &fast_ops::ScaledDotProductAttention);
+          "scaledDotProductAttention", &fast_ops::ScaledDotProductAttention,
+          "metalKernel", &fast_ops::MetalKernel);
 }

@@ -452,6 +452,174 @@ describe('fast', () => {
                    1e-5);
   });
 
+  it('metalKernelBasic', function() {
+    if (!mx.metal.isAvailable())
+      this.skip();
+
+    // Element-wise doubling kernel. Size passed via template arg.
+    const source = `
+      uint elem = thread_position_in_grid.x;
+      if (elem < N) {
+        out[elem] = inp[elem] * 2.0f;
+      }
+    `;
+    const kernel = mx.fast.metalKernel(
+      'test_double',
+      ['inp'],
+      ['out'],
+      source,
+    );
+
+    const x = mx.array([1.0, 2.0, 3.0, 4.0]);
+    const [out] = kernel(
+      [x],
+      [[4]],
+      [mx.float32],
+      [4, 1, 1],
+      [4, 1, 1],
+      [['N', 4]],
+    );
+    mx.eval(out);
+    assert.deepEqual(out.tolist(), [2.0, 4.0, 6.0, 8.0]);
+  });
+
+  it('metalKernelMultipleIO', function() {
+    if (!mx.metal.isAvailable())
+      this.skip();
+
+    // Kernel with 2 inputs and 2 outputs: sum and difference.
+    const source = `
+      uint elem = thread_position_in_grid.x;
+      if (elem < N) {
+        sum[elem] = a[elem] + b[elem];
+        diff[elem] = a[elem] - b[elem];
+      }
+    `;
+    const kernel = mx.fast.metalKernel(
+      'test_sum_diff',
+      ['a', 'b'],
+      ['sum', 'diff'],
+      source,
+    );
+
+    const a = mx.array([5.0, 10.0, 15.0]);
+    const b = mx.array([1.0, 2.0, 3.0]);
+    const [sum, diff] = kernel(
+      [a, b],
+      [[3], [3]],
+      [mx.float32, mx.float32],
+      [3, 1, 1],
+      [3, 1, 1],
+      [['N', 3]],
+    );
+    mx.eval(sum, diff);
+    assert.deepEqual(sum.tolist(), [6.0, 12.0, 18.0]);
+    assert.deepEqual(diff.tolist(), [4.0, 8.0, 12.0]);
+  });
+
+  it('metalKernelTemplateArgs', function() {
+    if (!mx.metal.isAvailable())
+      this.skip();
+
+    // Kernel parameterized by template constants SCALE and N.
+    const source = `
+      uint elem = thread_position_in_grid.x;
+      if (elem < N) {
+        out[elem] = inp[elem] * SCALE;
+      }
+    `;
+    const kernel = mx.fast.metalKernel(
+      'test_template_scale',
+      ['inp'],
+      ['out'],
+      source,
+    );
+
+    const x = mx.array([1.0, 2.0, 3.0]);
+    const [out] = kernel(
+      [x],
+      [[3]],
+      [mx.float32],
+      [3, 1, 1],
+      [3, 1, 1],
+      [['SCALE', 3], ['N', 3]],
+    );
+    mx.eval(out);
+    assert.deepEqual(out.tolist(), [3.0, 6.0, 9.0]);
+  });
+
+  it('metalKernelInitValue', function() {
+    if (!mx.metal.isAvailable())
+      this.skip();
+
+    // Kernel that conditionally writes — init_value fills unwritten elements.
+    // Only write to even indices, odd indices keep init_value.
+    const source = `
+      uint elem = thread_position_in_grid.x;
+      if (elem < N && elem % 2 == 0) {
+        out[elem] = inp[elem];
+      }
+    `;
+    const kernel = mx.fast.metalKernel(
+      'test_init_value',
+      ['inp'],
+      ['out'],
+      source,
+    );
+
+    const x = mx.array([10.0, 20.0, 30.0, 40.0]);
+    const [out] = kernel(
+      [x],
+      [[4]],
+      [mx.float32],
+      [4, 1, 1],
+      [4, 1, 1],
+      [['N', 4]],
+      0.0,      // init_value
+    );
+    mx.eval(out);
+    const result = out.tolist() as number[];
+    // Even indices get input values, odd indices get init_value (0.0).
+    assert.equal(result[0], 10.0);
+    assert.equal(result[1], 0.0);
+    assert.equal(result[2], 30.0);
+    assert.equal(result[3], 0.0);
+  });
+
+  it('metalKernel2D', function() {
+    if (!mx.metal.isAvailable())
+      this.skip();
+
+    // 2D grid dispatch — matrix transpose.
+    const source = `
+      uint row = thread_position_in_grid.x;
+      uint col = thread_position_in_grid.y;
+      if (row < 2 && col < 3) {
+        out[col * 2 + row] = inp[row * 3 + col];
+      }
+    `;
+    const kernel = mx.fast.metalKernel(
+      'test_transpose',
+      ['inp'],
+      ['out'],
+      source,
+    );
+
+    // 2x3 matrix → 3x2 transpose
+    const x = mx.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]).reshape([6]);
+    const [out] = kernel(
+      [x],
+      [[6]],
+      [mx.float32],
+      [2, 3, 1],
+      [2, 3, 1],
+    );
+    mx.eval(out);
+    const result = out.tolist() as number[];
+    // Transposed: [[1,4],[2,5],[3,6]] flattened
+    assert.deepEqual(result, [1.0, 4.0, 2.0, 5.0, 3.0, 6.0]);
+  });
+
   it('fastTransforms', () => {
     let x = mx.random.uniform(0, 1, [2, 2, 8]);
 
