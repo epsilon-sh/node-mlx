@@ -229,7 +229,7 @@ declare module '*node_mlx.node' {
   function cumprod(array: ScalarOrArray, axis?: number, reverse?: boolean, inclusive?: boolean, s?: StreamOrDevice): array;
   function cumsum(array: ScalarOrArray, axis?: number, reverse?: boolean, inclusive?: boolean, s?: StreamOrDevice): array;
   function degrees(array: ScalarOrArray, s?: StreamOrDevice): array;
-  function dequantize(w: array, scales: ScalarOrArray, biases: ScalarOrArray, groupSize: number, bits: number, s?: StreamOrDevice): array;
+  function dequantize(w: array, scales: ScalarOrArray, biases: ScalarOrArray, groupSize: number, bits: number, mode?: string, globalScale?: array | null, dtype?: Dtype | null, s?: StreamOrDevice): array;
   function diag(array: ScalarOrArray, k?: number, s?: StreamOrDevice): array;
   function diagonal(array: ScalarOrArray, offset?: number, axis1?: number, axis2?: number, s?: StreamOrDevice): array;
   function divide(a: ScalarOrArray, b: ScalarOrArray, s?: StreamOrDevice): array;
@@ -297,8 +297,8 @@ declare module '*node_mlx.node' {
   function prod(array: ScalarOrArray, keepdims?: boolean, s?: StreamOrDevice): array;
   function prod(array: ScalarOrArray, axis?: number | number[], keepdims?: boolean, s?: StreamOrDevice): array;
   function putAlongAxis(array: ScalarOrArray, indices: ScalarOrArray, values: ScalarOrArray, axis?: number, s?: StreamOrDevice): array;
-  function quantize(w: array, groupSize: number, bits: number, s?: StreamOrDevice): array;
-  function quantizedMatmul(w: array, x: array, scales: ScalarOrArray, biases: ScalarOrArray, transpose: boolean, groupSize: number, bits: number, s?: StreamOrDevice): array;
+  function quantize(w: array, groupSize: number, bits: number, mode?: string, globalScale?: array | null, s?: StreamOrDevice): array;
+  function quantizedMatmul(x: array, w: array, scales: ScalarOrArray, biases: ScalarOrArray, transpose: boolean, groupSize: number, bits: number, mode?: string, s?: StreamOrDevice): array;
   function radians(array: ScalarOrArray, s?: StreamOrDevice): array;
   function real(array: ScalarOrArray, s?: StreamOrDevice): array;
   function reciprocal(array: ScalarOrArray, s?: StreamOrDevice): array;

@@ -66,7 +66,7 @@ export class QuantizedEmbedding extends Module {
     const embeddingDims = embeddingLayer.weight.shape[0];
     const dims = embeddingLayer.weight.shape[1];
     const instance = new QuantizedEmbedding(embeddingDims, dims, groupSize, bits);
-    [instance.weight, instance.scales, instance.biases] = mx.quantize(embeddingLayer.weight, groupSize, bits);
+    [instance.weight, instance.scales, instance.biases] = mx.quantize(embeddingLayer.weight, groupSize, bits, 'affine', null);
     return instance;
   }
 
@@ -98,7 +98,7 @@ export class QuantizedEmbedding extends Module {
     // Initialize the quantized weight.
     const scale = Math.sqrt(1 / dims);
     const weight = mx.random.normal([numEmbeddings, dims], undefined, undefined, scale);
-    [this.weight, this.scales, this.biases] = mx.quantize(weight, groupSize, bits);
+    [this.weight, this.scales, this.biases] = mx.quantize(weight, groupSize, bits, 'affine', null);
     this.numEmbeddings = numEmbeddings;
     this.dims = dims;
 
@@ -111,7 +111,8 @@ export class QuantizedEmbedding extends Module {
                          this.scales.index(x),
                          this.biases.index(x),
                          this.groupSize,
-                         this.bits);
+                         this.bits,
+                         'affine');
   }
 
   /**
@@ -129,7 +130,8 @@ export class QuantizedEmbedding extends Module {
                               this.biases,
                               true,
                               this.groupSize,
-                              this.bits);
+                              this.bits,
+                              'affine');
   }
 
   override toStringExtra(): string {
@@ -157,7 +159,7 @@ export class QuantizedLinear extends Module {
   static fromLinear(linearLayer: Linear, groupSize = 64, bits = 4): QuantizedLinear {
     const [outDims, inDims] = linearLayer.weight.shape;
     const ql = new QuantizedLinear(inDims, outDims, false, groupSize, bits);
-    [ql.weight, ql.scales, ql.biases] = mx.quantize(linearLayer.weight, groupSize, bits);
+    [ql.weight, ql.scales, ql.biases] = mx.quantize(linearLayer.weight, groupSize, bits, 'affine', null);
     if (linearLayer.bias)
       ql.bias = linearLayer.bias;
     return ql;
@@ -191,7 +193,7 @@ export class QuantizedLinear extends Module {
     // Initialize the quantized weight.
     const scale = Math.sqrt(1 / inDims);
     const weight = mx.random.uniform(-scale, scale, [outDims, inDims]);
-    [this.weight, this.scales, this.biases] = mx.quantize(weight, groupSize, bits);
+    [this.weight, this.scales, this.biases] = mx.quantize(weight, groupSize, bits, 'affine', null);
 
     // And bias if needed.
     if (bias)
@@ -209,7 +211,7 @@ export class QuantizedLinear extends Module {
   }
 
   override forward(x: mx.array): mx.array {
-    x = mx.quantizedMatmul(x, this.weight, this.scales, this.biases, true, this.groupSize, this.bits);
+    x = mx.quantizedMatmul(x, this.weight, this.scales, this.biases, true, this.groupSize, this.bits, 'affine');
     if (this.bias)
       x = mx.add(x, this.bias);
     return x;
