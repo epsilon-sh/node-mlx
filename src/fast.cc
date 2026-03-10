@@ -74,6 +74,8 @@ mx::array ScaledDotProductAttention(
     const mx::array& values,
     const float scale,
     const std::variant<std::monostate, std::string, mx::array>& mask,
+    std::optional<mx::array> sinks,
+    std::optional<int> validLength,
     mx::StreamOrDevice s) {
   bool has_mask = !std::holds_alternative<std::monostate>(mask);
   bool has_str_mask =
@@ -90,16 +92,16 @@ mx::array ScaledDotProductAttention(
         throw std::invalid_argument(msg.str());
       }
       return mx::fast::scaled_dot_product_attention(
-          queries, keys, values, scale, mask_str, {}, {}, s);
+          queries, keys, values, scale, mask_str, {}, sinks, validLength, s);
     } else {
       auto mask_arr = std::get<mx::array>(mask);
       return mx::fast::scaled_dot_product_attention(
-          queries, keys, values, scale, "", {mask_arr}, {}, s);
+          queries, keys, values, scale, "", {mask_arr}, sinks, validLength, s);
     }
 
   } else {
     return mx::fast::scaled_dot_product_attention(
-        queries, keys, values, scale, "", {}, {}, s);
+        queries, keys, values, scale, "", {}, sinks, validLength, s);
   }
 }
 
